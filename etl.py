@@ -11,22 +11,24 @@ def process_song_file(cur, filepath):
         - Inserts data to artists table
 
         Arguments:
-            cur {object}:   Database connection cursor 
+            cur {object}:   Database connection cursor
             filepath {str}: Filepath of the song file to process
 
         Returns:
             N/A
     """
-    
+
     # open song file
     df = pd.read_json(filepath, lines=True)
 
     # insert song record
-    song_data = list(df[['song_id','title','artist_id','year','duration']].values[0])
+    song_data = list(df[['song_id', 'title', 'artist_id', 'year',
+                         'duration']].values[0])
     cur.execute(song_table_insert, song_data)
-    
+
     # insert artist record
-    artist_data = list(df[['artist_id','artist_name','artist_location','artist_latitude','artist_longitude']].values[0])
+    artist_data = list(df[['artist_id', 'artist_name', 'artist_location',
+                           'artist_latitude', 'artist_longitude']].values[0])
     cur.execute(artist_table_insert, artist_data)
 
 
@@ -37,7 +39,7 @@ def process_log_file(cur, filepath):
         - Inserts data to songplays table
 
         Arguments:
-            cur {object}:   Database connection cursor 
+            cur {object}:   Database connection cursor
             filepath {str}: Filepath of the log file to process
 
         Returns:
@@ -47,22 +49,23 @@ def process_log_file(cur, filepath):
     df = pd.read_json(filepath, lines=True)
 
     # filter by NextSong action
-    df = df.loc[df['page']=='NextSong',:]
+    df = df.loc[df['page'] == 'NextSong', :]
 
     # convert timestamp column to datetime
     t = pd.to_datetime(df['ts'], unit='ms')
-    
-    # insert time data records
-    time_data     = {'start_time':df['ts'].values, 'hour':t.dt.hour, 'day':t.dt.day,'week':t.dt.week,'month':t.dt.month,
-                  'year':t.dt.year,'weekday':t.dt.weekday}
 
-    time_df       = pd.DataFrame.from_dict(time_data)
+    # insert time data records
+    time_data = {'start_time': df['ts'].values, 'hour': t.dt.hour,
+                 'day': t.dt.day, 'week': t.dt.week, 'month': t.dt.month,
+                 'year': t.dt.year, 'weekday': t.dt.weekday}
+
+    time_df = pd.DataFrame.from_dict(time_data)
 
     for i, row in time_df.iterrows():
         cur.execute(time_table_insert, list(row))
 
     # load user table
-    user_df = df[['userId','firstName','lastName','gender','level']]
+    user_df = df[['userId', 'firstName', 'lastName', 'gender', 'level']]
 
     # insert user records
     for i, row in user_df.iterrows():
@@ -70,7 +73,7 @@ def process_log_file(cur, filepath):
 
     # insert songplay records
     for index, row in df.iterrows():
-        
+
         # get songid and artistid from song and artist tables
         cur.execute(song_select, (row.song, row.artist, row.length))
         results = cur.fetchone()
@@ -81,30 +84,34 @@ def process_log_file(cur, filepath):
             songid, artistid = None, None
 
         # insert songplay record
-        songplay_data = [row['ts'], row['userId'], row['level'], songid, artistid, row['sessionId'], row['location'], row['userAgent']]
+        songplay_data = [row['ts'], row['userId'], row['level'], songid,
+                         artistid, row['sessionId'], row['location'],
+                         row['userAgent']]
         cur.execute(songplay_table_insert, songplay_data)
 
 
 def process_data(cur, conn, filepath, func):
     """ Process data for each file in a directory
-        -  Calls 'func' to process 
-        -  Once the file is processed and queries executed, it commits changes to database 
+        -  Calls 'func' to process
+        -  Once the file is processed and queries executed, it commits changes
+           to database
 
         Arguments:
-            cur {object}  : Database connection cursor 
+            cur {object}  : Database connection cursor
             conn{object}  : Database connection
-            filepath {str}: Filepath of the files directory which will be process
+            filepath {str}: Filepath of the files directory which will be
+                            process
             func{function}: Function that declares process each file
 
         Returns:
             N/A
     """
-    
+
     # get all files matching extension from directory
     all_files = []
     for root, dirs, files in os.walk(filepath):
-        files = glob.glob(os.path.join(root,'*.json'))
-        for f in files :
+        files = glob.glob(os.path.join(root, '*.json'))
+        for f in files:
             all_files.append(os.path.abspath(f))
 
     # get total number of files found
@@ -119,7 +126,8 @@ def process_data(cur, conn, filepath, func):
 
 
 def main():
-    conn = psycopg2.connect("host=127.0.0.1 dbname=sparkifydb user=student password=student")
+    conn = psycopg2.connect(
+           "host=127.0.0.1 dbname=sparkifydb user=student password=student")
     cur = conn.cursor()
 
     process_data(cur, conn, filepath='data/song_data', func=process_song_file)
